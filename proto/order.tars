@@ -1,0 +1,13 @@
+module order {
+    struct Order {
+        1 require string id;
+        2 optional vector<string> items;
+        3 optional string description;
+        4 require float price;
+        5 optional string destination;
+    };
+
+    interface OrderManagement {
+        Order getOrder(string orderId);
+    };
+};
