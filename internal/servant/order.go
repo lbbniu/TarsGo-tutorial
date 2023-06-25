@@ -9,14 +9,31 @@ import (
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
 
-type Order struct {
-}
-
 var orders = make(map[string]order.Order)
 
-var _ order.OrderManagementServantWithContext = (*Order)(nil)
+type OrderCtx struct {
+}
 
-func (o Order) GetOrder(tarsCtx context.Context, orderId string) (ret order.Order, err error) {
+// 有context.Context实现服务端
+var _ order.OrderManagementServantWithContext = (*OrderCtx)(nil)
+
+func NewOrderCtx() *OrderCtx {
+	o := &OrderCtx{}
+	o.init()
+	return o
+}
+
+func (o *OrderCtx) init() {
+	orders["1"] = order.Order{
+		Id:          "1",
+		Price:       100,
+		Items:       []string{"iPhone 11", "MacBook Pro"},
+		Description: "MacBook Pro",
+		Destination: "Beijing",
+	}
+}
+
+func (o *OrderCtx) GetOrder(tarsCtx context.Context, orderId string) (ret order.Order, err error) {
 	ord, exists := orders[orderId]
 	if exists {
 		return ord, nil

@@ -7,9 +7,10 @@ import (
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
 
+// --config/config.conf
 func main() {
 	cfg := tars.GetServerConfig()
-	imp := new(servant.Order)
+	imp := servant.NewOrderCtx()
 	app := new(order.OrderManagement)
 	app.AddServantWithContext(imp, cfg.App+"."+cfg.Server+".OrderObj")
 	tars.Run()
