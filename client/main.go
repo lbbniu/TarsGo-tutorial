@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/TarsCloud/TarsGo/tars"
 	"github.com/TarsCloud/TarsGo/tars/util/current"
@@ -15,6 +17,39 @@ func main() {
 	client := new(order.OrderManagement)
 	obj := "Test.OrderServer.OrderObj@tcp -h 127.0.0.1 -p 8080 -t 60000"
 	comm.StringToProxy(obj, client)
+	tars.RegisterClientFilter(func(ctx context.Context, msg *tars.Message, invoke tars.Invoke, timeout time.Duration) (err error) {
+		// TODO: 增加请求前业务逻辑
+		// 这里可以增加：日志记录、权限认证、限流、链路追踪等
+		s := time.Now()
+		err = invoke(ctx, msg, timeout)
+		// TODO: 增加请求后业务逻辑
+		log.Printf("ServantName: %s, FuncName: %s, req: %v, resp: %v, latency: %s\n",
+			msg.Req.SServantName, msg.Req.SFuncName, msg.Req, msg.Resp, time.Now().Sub(s))
+		return err
+	})
+
+	tars.RegisterPreClientFilter(func(ctx context.Context, msg *tars.Message, invoke tars.Invoke, timeout time.Duration) (err error) {
+		// TODO: 增加请求前业务逻辑
+		return err // 此处返回err，客户端会继续处理，只会记录对应的错误日志
+	})
+
+	tars.RegisterPreClientFilter(func(ctx context.Context, msg *tars.Message, invoke tars.Invoke, timeout time.Duration) (err error) {
+		// TODO: 增加请求后业务逻辑
+		return err // 此处返回err，客户端会继续处理，只会记录对应的错误日志
+	})
+
+	tars.UseClientFilterMiddleware(func(next tars.ClientFilter) tars.ClientFilter {
+		return func(ctx context.Context, msg *tars.Message, invoke tars.Invoke, timeout time.Duration) (err error) {
+			// TODO: 增加请求前业务逻辑
+			// 这里可以增加：日志记录、权限认证、限流、链路追踪等
+			s := time.Now()
+			err = next(ctx, msg, invoke, timeout)
+			// TODO: 增加请求后业务逻辑
+			log.Printf("ServantName: %s, FuncName: %s, latency: %s\n",
+				msg.Req.SServantName, msg.Req.SFuncName, time.Now().Sub(s))
+			return err
+		}
+	})
 
 	noCtxCall(client)
 	ctxCall(client)
