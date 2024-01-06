@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/TarsCloud/TarsGo/tars"
-	"github.com/TarsCloud/TarsGo/tars/protocol/res/requestf"
 	"log"
 	"time"
+
+	"github.com/TarsCloud/TarsGo/tars"
+	"github.com/TarsCloud/TarsGo/tars/protocol/res/requestf"
 
 	"github.com/lbbniu/TarsGo-tutorial/internal/servant"
 	"github.com/lbbniu/TarsGo-tutorial/order"
