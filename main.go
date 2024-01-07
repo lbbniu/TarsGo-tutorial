@@ -12,7 +12,8 @@ import (
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
 
-// --config/config.conf
+// --config config/config.conf
+//go:generate tars2go -outdir=. -module=github.com/lbbniu/TarsGo-tutorial proto/order.tars
 func main() {
 	cfg := tars.GetServerConfig()
 	imp := servant.NewOrderCtx()
