@@ -3,73 +3,72 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/TarsCloud/TarsGo/tars/util/current"
+	"log"
+	"log/slog"
+	"strconv"
+	"time"
 
 	"github.com/TarsCloud/TarsGo/tars"
-	"github.com/TarsCloud/TarsGo/tars/util/current"
-
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
+
+func orderClientFilter(next tars.ClientFilter) tars.ClientFilter {
+	return func(ctx context.Context, msg *tars.Message, invoke tars.Invoke, timeout time.Duration) (err error) {
+		if msg.Req.Context == nil {
+			msg.Req.Context = make(map[string]string)
+		}
+		var (
+			s  string
+			ok bool
+		)
+		if s, ok = msg.Req.Context["time"]; !ok {
+			s = "inter" + strconv.FormatInt(time.Now().UnixNano(), 10)
+			msg.Req.Context["time"] = s
+		}
+		log.Printf("call timestamp: %s", s)
+		// Invoking the remote method
+		err = next(ctx, msg, invoke, timeout)
+		return err
+	}
+}
 
 func main() {
 	comm := tars.GetCommunicator()
 	client := new(order.OrderManagement)
 	obj := "Test.OrderServer.OrderObj@tcp -h 127.0.0.1 -p 8080 -t 60000"
 	comm.StringToProxy(obj, client)
-
-	noCtxCall(client)
+	tars.UseClientFilterMiddleware(orderClientFilter)
+	ctxTimeCall(client)
 	ctxCall(client)
-	oneWayCall(client)
-	modHashCall(client)
-	consistentHashCall(client)
 }
 
-// 无context.Content调用
-func noCtxCall(client *order.OrderManagement) {
-	order, err := client.GetOrder("1")
+func ctxTimeCall(client *order.OrderManagement) {
+	ctx := current.ContextWithTarsCurrent(context.Background())
+	ctx = current.ContextWithClientCurrent(ctx)
+	mcontext := map[string]string{
+		"time": "raw" + strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	order, err := client.GetOrderWithContext(ctx, "1", mcontext)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("noctx: %+v\n", order)
+
+	fmt.Printf("ctx: %+v\n", order)
 }
 
 // 有context.Content调用
 func ctxCall(client *order.OrderManagement) {
-	order, err := client.GetOrderWithContext(context.Background(), "1")
+	ctx := current.ContextWithTarsCurrent(context.Background())
+	ctx = current.ContextWithClientCurrent(ctx)
+	mcontext := map[string]string{"client-key1": "client-value1", "client-key2": "client-value2"}
+	status := map[string]string{"client-key1": "client-value1", "client-key2": "client-value2"}
+	order, err := client.GetOrderWithContext(ctx, "1", mcontext, status)
 	if err != nil {
 		panic(err)
 	}
+	slog.InfoContext(ctx, "serverContext", "context", mcontext)
+	slog.InfoContext(ctx, "serverStatus", "status", status)
+
 	fmt.Printf("ctx: %+v\n", order)
-}
-
-// 单向调用，无返回值，目前函数前面会有返回值，后续tars2go中会去掉
-func oneWayCall(client *order.OrderManagement) {
-	_, err := client.GetOrderOneWayWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("oneway")
-}
-
-// 取模调用
-func modHashCall(client *order.OrderManagement) {
-	ctx := current.ContextWithClientCurrent(context.Background())
-	var hashCode uint32 = 1
-	current.SetClientHash(ctx, int(tars.ModHash), hashCode)
-	order, err := client.GetOrderWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ModHash: %+v\n", order)
-}
-
-// 一致性哈希调用
-func consistentHashCall(client *order.OrderManagement) {
-	ctx := current.ContextWithClientCurrent(context.Background())
-	var hashCode uint32 = 1
-	current.SetClientHash(ctx, int(tars.ConsistentHash), hashCode)
-	order, err := client.GetOrderWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ConsistentHash: %+v\n", order)
 }

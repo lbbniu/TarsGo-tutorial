@@ -2,9 +2,11 @@ package servant
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/TarsCloud/TarsGo/tars"
+	"github.com/TarsCloud/TarsGo/tars/util/current"
 
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
@@ -34,6 +36,19 @@ func (o *OrderCtx) init() {
 }
 
 func (o *OrderCtx) GetOrder(tarsCtx context.Context, orderId string) (ret order.Order, err error) {
+	mcontext, mok := current.GetRequestContext(tarsCtx) // get context
+	if mok {
+		slog.InfoContext(tarsCtx, "clientContext", "context", mcontext)
+	}
+	status, sok := current.GetRequestStatus(tarsCtx) // get status
+	if sok {
+		slog.InfoContext(tarsCtx, "clientStatus", "status", status)
+	}
+	m := map[string]string{"server-key1": "server-value1", "server-key2": "server-value2"}
+	s := map[string]string{"server-key1": "server-value1", "server-key2": "server-value2"}
+	current.SetResponseContext(tarsCtx, m) // set context
+	current.SetResponseStatus(tarsCtx, s)  // set status
+
 	ord, exists := orders[orderId]
 	if exists {
 		return ord, nil
