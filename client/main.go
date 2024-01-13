@@ -61,8 +61,10 @@ func ctxTimeCall(client *order.OrderManagement) {
 func ctxCall(client *order.OrderManagement) {
 	ctx := current.ContextWithTarsCurrent(context.Background())
 	ctx = current.ContextWithClientCurrent(ctx)
+	client.TarsSetTimeout(10000)
 	mcontext := map[string]string{"client-key1": "client-value1", "client-key2": "client-value2"}
 	status := map[string]string{"client-key1": "client-value1", "client-key2": "client-value2"}
+	current.SetClientTimeout(ctx, 10000)
 	order, err := client.GetOrderWithContext(ctx, "1", mcontext, status)
 	if err != nil {
 		panic(err)

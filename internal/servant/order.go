@@ -2,12 +2,9 @@ package servant
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
 	"github.com/TarsCloud/TarsGo/tars"
-	"github.com/TarsCloud/TarsGo/tars/util/current"
-
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
 
@@ -35,7 +32,7 @@ func (o *OrderCtx) init() {
 	}
 }
 
-func (o *OrderCtx) GetOrder(tarsCtx context.Context, orderId string) (ret order.Order, err error) {
+/*func (o *OrderCtx) GetOrder(tarsCtx context.Context, orderId string) (ret order.Order, err error) {
 	mcontext, mok := current.GetRequestContext(tarsCtx) // get context
 	if mok {
 		slog.InfoContext(tarsCtx, "clientContext", "context", mcontext)
@@ -55,4 +52,20 @@ func (o *OrderCtx) GetOrder(tarsCtx context.Context, orderId string) (ret order.
 	}
 
 	return ord, tars.Errorf(http.StatusNotFound, "Order does not exist. : ", orderId)
+}*/
+
+// GetOrder 超时控制示例
+func (o *OrderCtx) GetOrder(tarsCtx context.Context, orderId string) (ret order.Order, err error) {
+	select {
+	case <-tarsCtx.Done():
+		return ret, tars.Errorf(http.StatusRequestTimeout, "Client cancelled, abandoning.")
+	default:
+	}
+
+	ord, exists := orders[orderId]
+	if exists {
+		return ord, nil
+	}
+
+	return ord, tars.Errorf(http.StatusNotFound, "Order does not exist. : %v", orderId)
 }
