@@ -57,6 +57,17 @@ func ctxTimeCall(client *order.OrderManagement) {
 	fmt.Printf("ctx: %+v\n", order)
 }
 
+func ctxTimeoutCall(client *order.OrderManagement) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	order, err := client.GetOrderWithContext(ctx, "1")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("ctx: %+v\n", order)
+}
+
 // 有context.Content调用
 func ctxCall(client *order.OrderManagement) {
 	ctx := current.ContextWithTarsCurrent(context.Background())
