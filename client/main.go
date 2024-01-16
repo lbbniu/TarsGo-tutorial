@@ -13,7 +13,7 @@ import (
 func main() {
 	comm := tars.GetCommunicator()
 	client := new(order.OrderManagement)
-	obj := "Test.OrderServer.OrderObj@tcp -h 127.0.0.1 -p 8080 -t 60000"
+	obj := "Test.OrderServer.OrderObj@ssl -h 127.0.0.1 -p 8080 -t 60000"
 	comm.StringToProxy(obj, client)
 
 	noCtxCall(client)
