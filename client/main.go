@@ -2,74 +2,64 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/TarsCloud/TarsGo/tars"
-	"github.com/TarsCloud/TarsGo/tars/util/current"
+	"github.com/TarsCloud/TarsGo/tars/util/rogger"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/lbbniu/TarsGo-tutorial/order"
 )
 
+type JwtAuthentication struct {
+	key []byte
+}
+
+func NewJwtAuthentication(key []byte) *JwtAuthentication {
+	return &JwtAuthentication{key: key}
+}
+
+func (j *JwtAuthentication) Build() tars.ClientFilterMiddleware {
+	return func(next tars.ClientFilter) tars.ClientFilter {
+		return func(ctx context.Context, msg *tars.Message, invoke tars.Invoke, timeout time.Duration) (err error) {
+			// Create a new token object, specifying signing method and the claims
+			// you would like it to contain.
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+				ID:        "lbbniu",
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
+			})
+			// Sign and get the complete encoded token as a string using the secret
+			tokenString, err := token.SignedString(j.key)
+			if err != nil {
+				return err
+			}
+			if msg.Req.Context == nil {
+				msg.Req.Context = make(map[string]string)
+			}
+			//msg.Req.Context["authorization"] = "Bearer " + tokenString
+			msg.Req.Context["authorization"] = tokenString
+			return next(ctx, msg, invoke, timeout)
+		}
+	}
+}
+
 func main() {
+	log := rogger.GetLogger("order")
+	defer rogger.FlushLogger()
+	jwtAuth := NewJwtAuthentication([]byte("84810c08ab8805c376b1bf614b8446c6"))
+	tars.UseClientFilterMiddleware(jwtAuth.Build())
+
 	comm := tars.GetCommunicator()
 	client := new(order.OrderManagement)
 	obj := "Test.OrderServer.OrderObj@tcp -h 127.0.0.1 -p 8080 -t 60000"
 	comm.StringToProxy(obj, client)
 
-	noCtxCall(client)
-	ctxCall(client)
-	oneWayCall(client)
-	modHashCall(client)
-	consistentHashCall(client)
-}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-// 无context.Content调用
-func noCtxCall(client *order.OrderManagement) {
-	order, err := client.GetOrder("1")
+	order, err := client.GetOrderWithContext(ctx, "1")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("noctx: %+v\n", order)
-}
-
-// 有context.Content调用
-func ctxCall(client *order.OrderManagement) {
-	order, err := client.GetOrderWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ctx: %+v\n", order)
-}
-
-// 单向调用，无返回值，目前函数前面会有返回值，后续tars2go中会去掉
-func oneWayCall(client *order.OrderManagement) {
-	_, err := client.GetOrderOneWayWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("oneway")
-}
-
-// 取模调用
-func modHashCall(client *order.OrderManagement) {
-	ctx := current.ContextWithClientCurrent(context.Background())
-	var hashCode uint32 = 1
-	current.SetClientHash(ctx, int(tars.ModHash), hashCode)
-	order, err := client.GetOrderWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ModHash: %+v\n", order)
-}
-
-// 一致性哈希调用
-func consistentHashCall(client *order.OrderManagement) {
-	ctx := current.ContextWithClientCurrent(context.Background())
-	var hashCode uint32 = 1
-	current.SetClientHash(ctx, int(tars.ConsistentHash), hashCode)
-	order, err := client.GetOrderWithContext(context.Background(), "1")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ConsistentHash: %+v\n", order)
+	log.Infof("GetOrderWithContext Response: %+v", order)
 }
